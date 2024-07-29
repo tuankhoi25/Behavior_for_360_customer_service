@@ -1,14 +1,14 @@
 # Behavior_for_360_customer_service
-Dự án này được thiết kế nhằm phân tích hành vi sử dụng dịch vụ của người dùng trong 30 ngày tháng 04/2022.
+The objective of this project is to conduct a behavioral analysis of users interacting with the service throughout April 2022.
 
 ## About the data 
-Thời gian sử dụng dịch vụ của người dùng được lưu trữ theo định dạng JSON.
+User interaction data is stored in JSON format for further analysis.
 
 ## Procedure 
-Dữ liệu được xử lý bằng Pyspark và sau đó được lưu trữ vào cơ sở dữ liệu MySQL.
+The data is processed using PySpark and then stored in a MySQL database.
 
 ### Extract data
-Trong quá trình này, chúng ta sẽ đọc và tiến hành thống kê cơ bản dữ liệu của từng ngày trong tháng và union lại để nó phù hợp để biết được mỗi ngày người dùng sẽ bỏ ra bao nhiêu thời gian để xem những thể loại phim khác nhau.
+During this process, we will read the data, perform basic statistics for each day of the month, and then union the results to understand how much time users spend watching different genres each day.
 ```python
 def Read_file_json(path):
     data = spark.read.format('json').option('header', 'true').load(path)
@@ -24,6 +24,7 @@ def Set_category(data):
       .when((col("AppName") == 'CHILD'), "Thiếu Nhi")
       .when((col("AppName") == 'SPORT'), "Thể Thao")
       .otherwise("Error"))
+
     data = data.drop("AppName")
     return data
 
@@ -42,8 +43,8 @@ def Extract_and_basic_Transform_1_day(directory_path, file_name):
 
 def Extract_and_basic_Transform_30_day(directory_path):
     files = os.listdir(directory_path)
+    files = [file for file in files if file != '.DS_Store']
     files.sort()
-    print(files)
 
     data = 0
     for i in range(0, 30):
@@ -55,15 +56,15 @@ def Extract_and_basic_Transform_30_day(directory_path):
     return data
 ```
 
-#### Chức năng cụ thể của từng hàm
+#### The specific function of each method
 
-##### Hàm Extract_and_basic_Transform_30_day
-Đoạn mã này có một tham số là đường dẫn của thư mục chứa dữ liệu của 30 ngày. Những file dữ liệu này sẽ được đọc và xử lý thông qua hàm Extract_and_basic_Transform_1_day và union lại với nhau theo ngày tăng dần. Kết quả trả về của hàm Extract_and_basic_Transform_30_day chính là một dataframe chứa dữ liệu của 30 ngày. 
+##### Extract_and_basic_Transform_30_day function
+This code takes a directory path as a parameter, which contains 30 days of data files. Each file will be read and processed by the Extract_and_basic_Transform_1_day function and then unioned together in ascending order by date. The final output of the Extract_and_basic_Transform_30_day function is a DataFrame containing the data from all 30 days.
 ```python
 def Extract_and_basic_Transform_30_day(directory_path):
     files = os.listdir(directory_path)
+    files = [file for file in files if file != '.DS_Store']
     files.sort()
-    print(files)
 
     data = 0
     for i in range(0, 30):
@@ -75,13 +76,13 @@ def Extract_and_basic_Transform_30_day(directory_path):
     return data
 ```
 
-##### Hàm Extract_and_basic_Transform_1_day
-Sau khi được gọi trong hàm Extract_and_basic_Transform_30_day, hàm này sẽ tiến hành đọc dữ liệu của file cụ thể và tiến hành một số bước transform dữ liệu cơ bản như: 
-* Đọc dữ liệu từ file.
-* Ánh xạ các danh mục cụ thể cho từng kênh.
-* Tạo ra dataframe cho biết tổng số giờ xem cho từng thể loại phim của từng người dùng.
-* Làm sạch dữ liệu bằng cách thay các giá trị NULL bằng giá trị 0
-* Thêm cột 'Date' để phân biệt dữ liệu của từng ngày.
+##### Extract_and_basic_Transform_1_day function
+After being called in the Extract_and_basic_Transform_30_day function, this function will read the specific file's data and perform some basic data transformations such as:
+* Reading data from the file.
+* Mapping specific categories to each channel.
+* Creating a dataframe that shows the total viewing hours for each genre of movie for each user.
+* Cleaning the data by replacing NULL values with 0.
+* Adding a 'Date' column to distinguish the data of each day.
 ```python
 def Extract_and_basic_Transform_1_day(directory_path, file_name):
     data = Read_file_json(os.path.join(directory_path, file_name))
@@ -92,8 +93,8 @@ def Extract_and_basic_Transform_1_day(directory_path, file_name):
     return data
 ```
 
-##### Hàm Read_file_json
-Lấy dữ liệu về tổng thời gian mà từng người dùng bỏ ra để xem phim.
+##### Read_file_json function
+Retrieve the total time each user spends watching movies.
 ```python
 def Read_file_json(path):
     data = spark.read.format('json').option('header', 'true').load(path)
@@ -101,8 +102,8 @@ def Read_file_json(path):
     return data
 ```
 
-##### Hàm Set_category
-Thêm cột "Type" để lưu trữ thể loại phim tương ứng với từng kênh của cột "AppName".
+##### Set_category function
+Add a 'Type' column to store the movie genre corresponding to each channel in the 'AppName' column.
 ```python
 def Set_category(data):
     data = data.withColumn("Type",
@@ -113,12 +114,13 @@ def Set_category(data):
       .when((col("AppName") == 'CHILD'), "Thiếu Nhi")
       .when((col("AppName") == 'SPORT'), "Thể Thao")
       .otherwise("Error"))
+
     data = data.drop("AppName")
     return data
 ```
 
-##### Hàm Set_category
-Tính tổng số giờ xem cho từng thể loại phim của từng người dùng
+##### Set_category function
+Calculate the total viewing hours for each movie genre for each user.
 ```python
 def Pivot_data(data):
     data = data.groupBy('Contract', 'Type').agg((sum('TotalDuration').alias('TotalDuration')))
@@ -127,7 +129,7 @@ def Pivot_data(data):
 ```
 
 ### Transform data
-Trong quá trình này, chúng ta sẽ biến đổi những dữ liệu thu được từ quá trình Extract data để tìm xem trong cả tháng 4/2022 mỗi người dùng đã xem phim tổng cộng bao nhiêu ngày, bao gồm những thể loại phim nào và thể loại phim nào là được xem nhiều nhất.
+In this process, we will transform the data obtained from the Extract data phase to determine how many days each user watched movies in total during April 2022, which movie genres were included, and which genre was watched the most.
 ```python
 def Get_activeness(data):
     right = data.select('Contract', 'Date').orderBy('Contract')
@@ -136,7 +138,6 @@ def Get_activeness(data):
     data = data.withColumnsRenamed({'sum(Giải Trí)':'Giải Trí', 'sum(Phim Truyện)':'Phim Truyện', 'sum(Thiếu Nhi)':'Thiếu Nhi', 'sum(Thể Thao)':'Thể Thao', 'sum(Truyền Hình)':'Truyền Hình'})
     data = data.join(right,on='Contract',how='inner')
     return data
-
 
 def Get_customer_taste(data):
     data=data.withColumn("Taste",concat_ws("-",
@@ -164,10 +165,10 @@ def Transform_to_OLAP(data):
     return data
 ```
 
-#### Chức năng cụ thể của từng hàm
+#### The specific function of each method.
 
-##### Hàm Get_activeness
-Tìm ra số ngày hoạt động của từng người dùng bằng cách đếm những giá trị duy nhất ở cột "Date", đồng thời tính tổng số giờ mà người dùng đã bỏ ra trong 30 ngày để xem từng thể loại phim.
+##### Get_activeness function
+Determine the number of active days for each user by counting the unique values in the 'Date' column, while also calculating the total hours each user spent over the 30 days watching each movie genre.
 ```python
 def Get_activeness(data):
     right = data.select('Contract', 'Date').orderBy('Contract')
@@ -178,8 +179,8 @@ def Get_activeness(data):
     return data
 ```
 
-##### Hàm Get_customer_taste
-Tổng hợp những thể loại phim mà người dùng xem dựa trên số giờ mà họ bỏ ra để xem từng thể loại phim đó.
+##### Get_customer_taste function
+Aggregate the movie genres that users watch based on the number of hours they spend watching each genre.
 ```python
 def Get_customer_taste(data):
     data=data.withColumn("Taste",concat_ws("-",
@@ -191,8 +192,8 @@ def Get_customer_taste(data):
     return data
 ```
 
-##### Hàm Get_most_watch
-Tìm ra thể loại phim mà người dùng dành ra nhiều thời gian nhất để xem.
+##### Get_most_watch function
+Identify the movie genre that users spend the most time watching.
 ```python
 def Get_most_watch(data):
     data=data.withColumn("MostWatch",greatest(col("Giải Trí"),col("Phim Truyện"),col("Thể Thao"),col("Thiếu Nhi"),col("Truyền Hình")))
@@ -206,7 +207,7 @@ def Get_most_watch(data):
 ```
 
 ### Load data
-Lưu trữ OLAP output vừa tìm được vào cơ sở dữ liệu MYSQL
+Store the OLAP output just obtained into the MySQL database.
 ```python
 def Load(data):
     url = 'jdbc:mysql://localhost:3306/B4_ETL'
@@ -241,4 +242,19 @@ def Load(data):
 |     AGAAA0375|       0|        114|        0|       0|      59377|         3|Truyền Hình|Phim Truyện-Truyề...|
 |     AGAAA0376|       0|          0|        0|       0|      18492|         3|Truyền Hình|         Truyền Hình|
 
-### Basic insight
+### Results Achieved from the Data ETL Process
+
+#### Activeness
+The data obtained from the Activeness column helps identify which customers are loyal and which are at risk of discontinuing the service, allowing for the development of corresponding strategies.
+
+For example: Implement a loyalty program (such as discount programs, point accumulation, birthday gifts, etc.) and personalize the experience for loyal customers to make them feel valued and more engaged with the service. Additionally, for customers at risk of discontinuing the service, special offers can be applied to retain them, and in-depth surveys and analysis of their behavior can be conducted to identify reasons for their potential departure.
+
+#### Taste
+The data obtained from the Taste column helps identify customers' favorite movie genres, allowing for the development of corresponding strategies.
+
+For example: Personalize user experiences by suggesting movies based on their preferences. This can be done by analyzing the genres of movies they have watched previously and recommending films of similar genres.
+
+#### MostWatch
+The data obtained from the MostWatch column helps us determine the movie genres that customers prefer the most, allowing for the development of specific strategies.
+
+For example: Instead of targeting all customers to introduce them to football packages (K+, FPT play, etc.), football viewing devices (TVs, speakers, etc.), or football-related accessories (shirts, shorts, posters, etc. featuring favorite players or teams), we can directly target those who most enjoy watching football to save costs.

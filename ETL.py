@@ -40,10 +40,9 @@ def Extract_and_basic_Transform_30_day(directory_path):
     files = os.listdir(directory_path)
     files = [file for file in files if file != '.DS_Store']
     files.sort()
-    print(files)
 
     data = 0
-    for i in range(0, 3):
+    for i in range(0, 30):
         if (data == 0):
             data = Extract_and_basic_Transform_1_day(directory_path, files[i])
         else:
@@ -61,6 +60,15 @@ def Get_activeness(data):
     data = data.join(right,on='Contract',how='inner')
     return data
 
+def Get_customer_taste(data):
+    data=data.withColumn("Taste",concat_ws("-",
+                                    when(col("Giải Trí") != 0,lit("Giải Trí"))
+                                    ,when(col("Phim Truyện") != 0,lit("Phim Truyện"))
+                                    ,when(col("Thể Thao") != 0,lit("Thể Thao"))
+                                    ,when(col("Thiếu Nhi") != 0,lit("Thiếu Nhi"))
+                                    ,when(col("Truyền Hình") != 0,lit("Truyền Hình"))))
+    return data
+
 def Get_most_watch(data):
     data=data.withColumn("MostWatch",greatest(col("Giải Trí"),col("Phim Truyện"),col("Thể Thao"),col("Thiếu Nhi"),col("Truyền Hình")))
     data=data.withColumn("MostWatch",
@@ -69,15 +77,6 @@ def Get_most_watch(data):
                     .when(col("MostWatch")==col("Thể Thao"),"Thể Thao")
                     .when(col("MostWatch")==col("Thiếu Nhi"),"Thiếu Nhi")
                     .when(col("MostWatch")==col("Giải Trí"),"Giải Trí"))
-    return data
-
-def Get_customer_taste(data):
-    data=data.withColumn("Taste",concat_ws("-",
-                                    when(col("Giải Trí") != 0,lit("Giải Trí"))
-                                    ,when(col("Phim Truyện") != 0,lit("Phim Truyện"))
-                                    ,when(col("Thể Thao") != 0,lit("Thể Thao"))
-                                    ,when(col("Thiếu Nhi") != 0,lit("Thiếu Nhi"))
-                                    ,when(col("Truyền Hình") != 0,lit("Truyền Hình"))))
     return data
 
 def Transform_to_OLAP(data):
@@ -92,20 +91,17 @@ def Load(data):
     url = 'jdbc:mysql://localhost:3306/B4_ETL'
     driver = "com.mysql.cj.jdbc.Driver"
     user = 'root'
-    password = 'riliss1stt'
+    password = '1'
     dbtable = 'table_name_1'
     data.write.format('jdbc').options(url = url , driver = driver , dbtable = dbtable , user=user , password = password).mode('overwrite').save()
 
 # --------------------------------------------------------------EXEC--------------------------------------------------------------
 
 def Main():
-    directory_path = '/Users/quachtuankhoi/Downloads/BigData - GEN - 7/Log_Content_test'
+    directory_path = '/Users/quachtuankhoi/Downloads/BigData - GEN - 7/Log_Content'
     df = Extract_and_basic_Transform_30_day(directory_path=directory_path)
     df = Transform_to_OLAP(df)
-    #df = Load(df)
-
-    print(df.count())
-    df.orderBy('Contract').show()
+    df = Load(df)
 
 spark = SparkSession.builder.config("spark.jars.packages","com.mysql:mysql-connector-j:8.3.0").getOrCreate()
 Main()
